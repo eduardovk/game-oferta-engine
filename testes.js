@@ -1,9 +1,11 @@
 const { SSL_OP_EPHEMERAL_RSA } = require('constants');
 const dataBase = require('./DB'); //classe do banco de dados
 const engine = require('./engine'); //principais funcoes
+const Job = require('./Job'); //classe de schedule jobs
+const { exit } = require('process');
 
 //atualiza o bd com novos jogos lancados
-engine.fetchNewGames();
+// engine.fetchNewGames();
 
 //---------------------------------------------
 // 

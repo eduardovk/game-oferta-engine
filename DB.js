@@ -164,7 +164,7 @@ class DB {
     //retorna loja com base no id_itad (plain) informado
     async returnStore(idITAD, debug = true) {
         const conn = await this.connect();
-        const [rows] = await conn.query('SELECT * FROM stores WHERE id_itad = ? LIMIT 1', [idITAD]).catch(e => console.log(e));
+        const [rows] = await conn.query('SELECT * FROM stores WHERE id_itad = ? LIMIT 1', [idITAD]);
         if (rows.length > 0) { //se ja houver a loja no bd
             return rows[0];
         }
@@ -292,12 +292,45 @@ class DB {
         const conn = await this.connect();
         const [rows] = await conn.query('SELECT * FROM jobs WHERE status = "running" LIMIT 1');
         if (rows.length > 0) { //se houverem jobs com status 'running' (em andamento)
-            if (debug) process.stdout.write('Running job found!');
+            if (debug) process.stdout.write('Running job found!\n');
             var msg = 'Job (ID: ' + rows[0].id + ') still running.';
             return msg; //retorna msg de erro de job ainda em andamento
         }
         return false;
     }
+
+
+    //insere registro de schedule job no bd
+    async insertJob(job, debug = true) {
+        const conn = await this.connect();
+        var sql = 'INSERT INTO jobs(job_type,start_time,end_time,status,msg,ambient) VALUES(?,?,?,?,?,?);';
+        var values = [job.jobType, job.startTime, job.endTime, job.status, job.msg, job.ambient];
+        return await conn.query(sql, values).then((result) => {
+            if (debug) console.log('Inserted job [' + job.jobType + '] into database!');
+            return result;
+        }).catch(e => {
+            console.log('Error inserting job [' + job.jobType + '] into database: \n' + e);
+            exit();
+        });
+    }
+
+
+    //atualiza registro de schedule job no bd
+    async updateJob(job, debug = true) {
+        const conn = await this.connect();
+        var sql = 'UPDATE jobs SET job_type = ?, end_time = ?, status = ?, '
+            + 'msg = ?, ambient = ? WHERE id = ? LIMIT 1';
+        var values = [job.jobType, job.endTime, job.status, job.msg, job.ambient, job.id];
+        return await conn.query(sql, values).then(() => {
+            if (debug) console.log('UPDATED job [' + job.jobType + ' -> id ' + job.id + ']!');
+        }).catch(e => {
+            console.log('Error UPDATING job [' + job.jobType + ' -> id ' + job.id + ']: \n' + e);
+            exit();
+        });
+    }
+
+
+
 
 }
 

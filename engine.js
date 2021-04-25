@@ -34,13 +34,16 @@ async function fetchNewGames() {
 async function fetchNewStores() {
     var db = new dataBase();
     var ITADInstance = new ITADApi();
+    var newStores = "";
     var stores = await ITADInstance.getAllStores(); //faz request das lojas a API ITAD
     for (var store of stores) { //para cada loja encontrada
         var exists = await db.returnStore(store.id); //verifica se ja existe no bd
         if (!exists) { //caso nao exista
             await db.insertStore(store); //insere no bd
+            newStores += "[" + store.title + "]";
         }
     }
+    if (newStores !== "") return "Found new store(s): " + newStores;
     return null;
 }
 
