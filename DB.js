@@ -35,9 +35,6 @@ class DB {
         game.parent_game, game.similar_games, game.igdb_cover, currentDate, currentDate, 1];
         return await conn.query(sql, values).then(() => {
             if (debug) console.log('Inserted game [' + game.name + '] into database!');
-        }).catch(e => {
-            console.log('Error inserting game [' + game.name + '] into database: \n' + e);
-            exit();
         });
     }
 
@@ -187,9 +184,6 @@ class DB {
         game.parent_game, game.similar_games, game.igdb_cover, currentDate, game.active, game.id];
         return await conn.query(sql, values).then(() => {
             if (debug) console.log('UPDATED game [' + game.name + ']!');
-        }).catch(e => {
-            console.log('Error UPDATING game [' + game.name + ']: \n' + e);
-            exit();
         });
     }
 

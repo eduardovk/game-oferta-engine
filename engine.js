@@ -12,7 +12,8 @@ async function fetchNewGames() {
     var lastInsertedGame = await db.returnLatestGames(1); //retorna o ultimo jogo inserido no bd
     var idIndex = lastInsertedGame ? lastInsertedGame[0].igdb_id : 1; //pega o id igdb do jogo
     var IGDBInstance = new IGDBApi();
-    await IGDBInstance.getAllGames(idIndex + 1).then(async (games) => { //busca na API IGDB todos jogos a partir do id
+    var newInsertedGames = 0;
+    newInsertedGames = await IGDBInstance.getAllGames(idIndex + 1).then(async (games) => { //busca na API IGDB todos jogos a partir do id 
         console.log("Games fetched: " + games.length);
         if (games.length > 0) { //caso hajam jogos novos
             var db = new dataBase();
@@ -20,14 +21,19 @@ async function fetchNewGames() {
             for (var game of games) { //para cada jogo novo
                 let gameInDB = await db.returnGameByID(game.igdb_id, true); //verifica se game ja existe no db
                 if (gameInDB.length > 0) console.log('GAME ALREADY IN DB!\n');
-                else await db.insertGame(game); //insere no bd
+                else {
+                    await db.insertGame(game); //insere no bd
+                    newInsertedGames++;
+                }
             }
             var newInsertedGames = await db.returnLatestGames(games.length);
             await fillGamePlains(newInsertedGames); //procura pelo plain de cada jogo novo na api ITAD e insere no bd
             await db.checkDuplicatePlains(); //procura por plains duplicadas no bd e marca a flag duplicate_plain
         }
+        return newInsertedGames;
     });
-
+    if (newInsertedGames > 0) return "Found " + newInsertedGames + " new games.";
+    return null;
 }
 
 //procura na API do ITAD por novas lojas e insere no bd
