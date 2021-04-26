@@ -123,9 +123,6 @@ class DB {
         var values = [deal.id_game, deal.id_store, deal.price_new, deal.price_old, deal.price_cut, 1, currentDate];
         await conn.query(sql, values).then(() => {
             if (debug) console.log('Inserted deal [' + deal.id_itad + ' -> game_id ' + deal.id_game + '] into database!');
-        }).catch(e => {
-            console.log('Error inserting deal [' + deal.id_itad + ' -> game_id ' + deal.id_game + '] into database: \n' + e);
-            exit();
         });
     }
 
@@ -196,9 +193,6 @@ class DB {
         var values = [deal.price_new, deal.price_old, deal.price_cut, deal.current_deal, deal.unreachable, deal.id];
         return await conn.query(sql, values).then(() => {
             if (debug) console.log('UPDATED deal [' + deal.id_itad + ' -> game_id ' + deal.id_game + ']!');
-        }).catch(e => {
-            console.log('Error UPDATING deal [' + deal.id_itad + ' -> game_id ' + deal.id_game + ']: \n' + e);
-            exit();
         });
     }
 

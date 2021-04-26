@@ -77,13 +77,13 @@ async function fillGamePlains(games = null) {
 
 //busca o preco atual dos jogos informados (ou todos os jogos do bd caso plainsString == "")
 //plainsString deve ser uma string de plains separadas por virgula (sem espaco)
-async function fetchGamesPrices(plainsString = "") {
+async function fetchGamesPrices(plainsString = "", idIndex = 1) {
     var plainStringArr = []; //array de strings de plains limitadas pelo tamanho maximo de url
     var stopwatch = new Stopwatch();
     stopwatch.start(); //inicia cronometro, para fins de debug
     if (plainsString == "") { //caso string de plains nao tenha sido informada
         var db = new dataBase();
-        var games = await db.returnAllGames(1, false, " plain ", "active = 1"); //retorna plains de todos jogos
+        var games = await db.returnAllGames(idIndex, false, " plain ", "active = 1"); //retorna plains de todos jogos
         var tempString = "";
         for (var game of games) {
             if (game.plain != null && game.plain != "") {
