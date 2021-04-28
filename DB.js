@@ -43,6 +43,13 @@ class DB {
 
     //compara com deals informadas e insere no bd caso haja mudancas
     async compareAndInsertDeals(game, previousDeals, storesFilter, debug = true) {
+        //informacoes sobre qtd de deals atualizadas ou inseridas
+        var operationInfo = {
+            new: 0,
+            replaced: 0,
+            updated: 0,
+            unreachable: 0
+        };
         if (debug) console.log("\n");
         if (game.plain != null && game.plain.trim() != '') {
             var currentDate = DateTime.local().toFormat('yyyy-LL-dd HH:mm:ss'); //formata data atual
@@ -62,6 +69,7 @@ class DB {
                     var fetchedDeal = fetchedDeals[currentDeal.id_itad];
                     if (fetchedDeal.price_new != currentDeal.price_new && fetchedDeal.price_cut != currentDeal.price_cut) {
                         //Case 2 (Alterar current_deal = 0 no BD, Inserir nova deal com novos valores e current_deal = 1)
+                        operationInfo.replaced++;
                         if (debug) console.log('Case 2-> CHANGE Deal from ' + currentDeal.id_itad + ' (game ' + game.plain + ') NEW PRICE and PRICE CUT. ');
                         currentDeal.current_deal = 0;
                         await this.updateDeal(currentDeal);
@@ -74,6 +82,7 @@ class DB {
                     }
                     else if (fetchedDeal.price_new != currentDeal.price_new && (Math.abs(fetchedDeal.price_new - currentDeal.price_new) > 0.1)) { //10 centavos de diferenca
                         //Case 3 (Alterar para novos preços no BD, manter resto)
+                        operationInfo.updated++;
                         if (debug) console.log('Case 3 -> Price needs adjustment: ' + fetchedDeal.shop.id + ' (game ' + game.plain + ') '
                             + '[from ' + currentDeal.price_new + ' to ' + fetchedDeal.price_new + '] ');
                         currentDeal.price_new = fetchedDeal.price_new;
@@ -85,6 +94,7 @@ class DB {
                     }
                 } else { //caso esta deal nao conste mais nas deals atuais
                     //Case 4 (Alterar para current_deal = 0 e unreachable = 1 no BD)
+                    operationInfo.unreachable++;
                     if (debug) console.log('Case 4 -> Deal from ' + currentDeal.id_itad + ' (game ' + game.plain + ') IS NOT AVAILABLE ANYMORE. ');
                     currentDeal.current_deal = 0;
                     currentDeal.unreachable = 1;
@@ -100,6 +110,7 @@ class DB {
                 }
                 if (isNewStoreDeal) {
                     //Case 5 (Inserir nova deal no BD)
+                    operationInfo.new++;
                     if (debug) console.log('Case 5 -> GAME [' + game.plain + '] HAS NEW STORE DEAL (' + info.shop.id + ')! ');
                     var storeInfo = await this.returnStore(shop);
                     var newDeal = {
@@ -116,6 +127,7 @@ class DB {
         } else {
             console.log('ERROR: EMPTY PLAIN! ');
         }
+        return operationInfo; //retorna informacoes sobre as operacoes realizadas nas deals deste jogo
     }
 
 

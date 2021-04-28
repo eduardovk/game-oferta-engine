@@ -13,8 +13,8 @@ async function fetchNewGames() {
     var lastInsertedGame = await db.returnLatestGames(1); //retorna o ultimo jogo inserido no bd
     var idIndex = lastInsertedGame ? lastInsertedGame[0].igdb_id : 1; //pega o id igdb do jogo
     var IGDBInstance = new IGDBApi();
-    var newInsertedGames = 0;
-    newInsertedGames = await IGDBInstance.getAllGames(idIndex + 1).then(async (games) => { //busca na API IGDB todos jogos a partir do id 
+    var newGames = 0;
+    await IGDBInstance.getAllGames(idIndex + 1).then(async (games) => { //busca na API IGDB todos jogos a partir do id 
         console.log("Games fetched: " + games.length);
         if (games.length > 0) { //caso hajam jogos novos
             var db = new dataBase();
@@ -23,17 +23,17 @@ async function fetchNewGames() {
                 let gameInDB = await db.returnGameByID(game.igdb_id, true); //verifica se game ja existe no db
                 if (gameInDB.length > 0) console.log('GAME ALREADY IN DB!\n');
                 else {
+                    newGames++;
                     await db.insertGame(game); //insere no bd
-                    newInsertedGames++;
                 }
             }
             var newInsertedGames = await db.returnLatestGames(games.length);
             await fillGamePlains(newInsertedGames); //procura pelo plain de cada jogo novo na api ITAD e insere no bd
             await db.checkDuplicatePlains(); //procura por plains duplicadas no bd e marca a flag duplicate_plain
         }
-        return newInsertedGames;
+        return newGames;
     });
-    if (newInsertedGames > 0) return "Found " + newInsertedGames + " new games.";
+    if (newGames > 0) return "Found " + newGames + " new games.";
     return null;
 }
 
@@ -79,6 +79,13 @@ async function fillGamePlains(games = null) {
 //busca o preco atual de todos os jogos do bd a partir do idIndex informado
 //novo metodo otimizado (elimina busca individual de cada preco de jogo do bd)
 async function fetchAllGamesPrices(idIndex = 1) {
+    //informacoes sobre qtd de deals atualizadas ou inseridas
+    var dealsOperationInfo = {
+        new: 0,
+        replaced: 0,
+        updated: 0,
+        unreachable: 0
+    };
     var plainsString = "";
     var plainStringArr = []; //array de strings de plains limitadas pelo tamanho maximo de url
     var stopwatch = new Stopwatch();
@@ -89,6 +96,7 @@ async function fetchAllGamesPrices(idIndex = 1) {
     var gamesDeals = await db.returnAllGameDeals(idIndex); //retorna todos jogos e deals atuais
     var tempString = "";
     var groupedDeals = [];
+    var totalGamesAnalyzed = 0;
     //cria um array de plains
     for (var game of gamePlainsList) {
         if (game.plain !== null && game.plain !== "") {
@@ -97,6 +105,7 @@ async function fetchAllGamesPrices(idIndex = 1) {
             let plainIndex = 'game_' + game.plain;
             groupedDeals[plainIndex] = [];
             groupedDeals[plainIndex].push({ plain: game.plain, gameID: game.id });
+            totalGamesAnalyzed++;
         }
     }
     //agrupa as deals de acordo com o jogo a qual pertencem
@@ -121,7 +130,6 @@ async function fetchAllGamesPrices(idIndex = 1) {
     if (plainsString.slice(-1) === ',') plainsString = plainsString.slice(0, -1); //remove virgula extra caso exista
     plainStringArr.push(plainsString);
     var ITADInstance = new ITADApi();
-    var totalGamesCount = 0;
     var gamesArray = [];
     for (var str of plainStringArr) { //para cada string no array de strings de plains
         gamesArray = await ITADInstance.getPricesByPlain(str); //busca os precos dos jogos contidos nesta string
@@ -130,14 +138,26 @@ async function fetchAllGamesPrices(idIndex = 1) {
             console.log("Game:  " + game.plain + " ---> " + game.list.length + " deal(s) found.");
         }
         console.log(gamesArray.length + " GAMES RETURNED. \n");
-        totalGamesCount += gamesArray.length;
         for (var game of gamesArray) { //para cada objeto jogo retornado
             let plainIndex = 'game_' + game.plain;
-            await db.compareAndInsertDeals(game, groupedDeals[plainIndex], storesFilter); //insere precos do jogo no bd
+            //insere precos do jogo no bd e recebe informacoes sobre as operacoes realizadas
+            let operationInfo = await db.compareAndInsertDeals(game, groupedDeals[plainIndex], storesFilter);
+            dealsOperationInfo.new += operationInfo.new;
+            dealsOperationInfo.updated += operationInfo.updated;
+            dealsOperationInfo.replaced += operationInfo.replaced;
+            dealsOperationInfo.unreachable += operationInfo.unreachable;
         }
     }
-    console.log('\n\n' + totalGamesCount + ' TOTAL GAMES RETURNED.');
+    console.log('\n\n' + totalGamesAnalyzed + ' TOTAL GAMES ANALYZED.');
+    console.log(dealsOperationInfo.new + ' new deals INSERTED.');
+    console.log(dealsOperationInfo.updated + ' deals UPDATED.');
+    console.log(dealsOperationInfo.replaced + ' deals REPLACED.');
+    console.log(dealsOperationInfo.unreachable + ' deals UNREACHABLE.');
     console.log('Total execution time: ' + stopwatch.stop()); //para cronometro
+    //cria mensagem de relatorio da operacao
+    var finalMsg = totalGamesAnalyzed + " games analyzed, " + dealsOperationInfo.new + " new deals inserted, "
+        + dealsOperationInfo.updated + " updated, " + dealsOperationInfo.replaced + " replaced, " + dealsOperationInfo.unreachable + " unreachable.";
+    return finalMsg; //retorna msg de relatorio para salvar no job no bd
 }
 
 module.exports = { fetchNewGames, fillGamePlains, fetchAllGamesPrices, fetchNewStores };
