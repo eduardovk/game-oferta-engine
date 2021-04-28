@@ -11,7 +11,7 @@ const { exit } = require('process');
 var job = new Job('new_deals_check');
 job.start().then(async (e) => {
     if (e) {
-        await engine.fetchGamesPrices()
+        await engine.fetchAllGamesPrices()
             .then(async msg => {
                 await job.finish(msg);
             })

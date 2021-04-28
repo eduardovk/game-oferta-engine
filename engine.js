@@ -4,6 +4,7 @@ const IGDBApi = require('./APIs/IGDB'); //classe da API do IGDB
 const delay = require('delay'); //biblioteca para gerar atraso entre requests
 const { exit } = require('process'); //para poder utilizar a funcao exit
 const Stopwatch = require('./includes/Stopwatch'); //cronometro para fins de debug
+const config = require('./config.js');
 
 
 //procura na API do IGDB por novos jogos e insere no bd
@@ -75,28 +76,50 @@ async function fillGamePlains(games = null) {
 }
 
 
-//busca o preco atual dos jogos informados (ou todos os jogos do bd caso plainsString == "")
-//plainsString deve ser uma string de plains separadas por virgula (sem espaco)
-async function fetchGamesPrices(plainsString = "", idIndex = 1) {
+//busca o preco atual de todos os jogos do bd a partir do idIndex informado
+//novo metodo otimizado (elimina busca individual de cada preco de jogo do bd)
+async function fetchAllGamesPrices(idIndex = 1) {
+    var plainsString = "";
     var plainStringArr = []; //array de strings de plains limitadas pelo tamanho maximo de url
     var stopwatch = new Stopwatch();
     stopwatch.start(); //inicia cronometro, para fins de debug
-    if (plainsString == "") { //caso string de plains nao tenha sido informada
-        var db = new dataBase();
-        var games = await db.returnAllGames(idIndex, false, " plain ", "active = 1"); //retorna plains de todos jogos
-        var tempString = "";
-        for (var game of games) {
-            if (game.plain != null && game.plain != "") {
-                tempString = plainsString + escape(game.plain); //concatena a plain na string de plains
-                if (tempString.length < 1500) plainsString = tempString + ','; //verifica limite 
-                else {
-                    plainStringArr.push(plainsString.slice(0, -1)); //remove a ultima virgula e adiciona string ao array
-                    plainsString = game.plain + ','; //reinicia a string com nome do proximo jogo
-                }
+    var db = new dataBase();
+    var storesFilter = await db.returnStoreFilterPlains(); //recebe plain das listas contidas no filtro
+    var gamePlainsList = await db.returnAllGames(idIndex, false, " id, plain ", "active = 1"); //retorna plains de todos jogos
+    var gamesDeals = await db.returnAllGameDeals(idIndex); //retorna todos jogos e deals atuais
+    var tempString = "";
+    var groupedDeals = [];
+    //cria um array de plains
+    for (var game of gamePlainsList) {
+        if (game.plain !== null && game.plain !== "") {
+            //adicionado prefixo no inicio da string para nao haver conflito com palavras reservadas do js
+            //arrays nao podem ter palavras reservadas como key
+            let plainIndex = 'game_' + game.plain;
+            groupedDeals[plainIndex] = [];
+            groupedDeals[plainIndex].push({ plain: game.plain, gameID: game.id });
+        }
+    }
+    //agrupa as deals de acordo com o jogo a qual pertencem
+    for (var gameDeal of gamesDeals) {
+        if (gameDeal.game_plain !== null && gameDeal.game_plain !== "") {
+            let plainIndex = 'game_' + gameDeal.game_plain;
+            groupedDeals[plainIndex].push(gameDeal);
+        }
+    }
+    //cria array de strings contendo varias plains (no maximo 1500 caracteres por string)
+    for (var plainWithPrefix in groupedDeals) {
+        var dealGamePlain = groupedDeals[plainWithPrefix][0].plain //pega a plain do jogo
+        if (dealGamePlain !== null && dealGamePlain !== "") {
+            tempString = plainsString + escape(dealGamePlain); //concatena a plain na string de plains
+            if (tempString.length < 1500) plainsString = tempString + ','; //verifica limite 
+            else {
+                plainStringArr.push(plainsString.slice(0, -1)); //remove a ultima virgula e adiciona string ao array
+                plainsString = dealGamePlain + ','; //reinicia a string com nome do proximo jogo
             }
         }
     }
-    plainStringArr.push(plainsString); //adiciona string restante ao array
+    if (plainsString.slice(-1) === ',') plainsString = plainsString.slice(0, -1); //remove virgula extra caso exista
+    plainStringArr.push(plainsString);
     var ITADInstance = new ITADApi();
     var totalGamesCount = 0;
     var gamesArray = [];
@@ -109,11 +132,12 @@ async function fetchGamesPrices(plainsString = "", idIndex = 1) {
         console.log(gamesArray.length + " GAMES RETURNED. \n");
         totalGamesCount += gamesArray.length;
         for (var game of gamesArray) { //para cada objeto jogo retornado
-            await db.insertDeals(game); //insere precos do jogo no bd
+            let plainIndex = 'game_' + game.plain;
+            await db.compareAndInsertDeals(game, groupedDeals[plainIndex], storesFilter); //insere precos do jogo no bd
         }
     }
     console.log('\n\n' + totalGamesCount + ' TOTAL GAMES RETURNED.');
     console.log('Total execution time: ' + stopwatch.stop()); //para cronometro
 }
 
-module.exports = { fetchNewGames, fillGamePlains, fetchGamesPrices, fetchNewStores };
+module.exports = { fetchNewGames, fillGamePlains, fetchAllGamesPrices, fetchNewStores };

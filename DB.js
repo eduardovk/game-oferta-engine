@@ -2,6 +2,8 @@ const dbConfig = require('./db_config'); //dados de conexao com o bd
 const { DateTime } = require('luxon'); //biblioteca para manipulacao de datas
 const { exit } = require('process');
 const { resourceLimits } = require('worker_threads');
+const config = require('./config.js');
+
 
 //classe de conexao e manipulacao do banco de dados
 class DB {
@@ -39,17 +41,21 @@ class DB {
     }
 
 
-    //insere todos registros de preco de um jogo no bd
-    async insertDeals(game, debug = true) {
+    //compara com deals informadas e insere no bd caso haja mudancas
+    async compareAndInsertDeals(game, previousDeals, storesFilter, debug = true) {
         if (debug) console.log("\n");
         if (game.plain != null && game.plain.trim() != '') {
             var currentDate = DateTime.local().toFormat('yyyy-LL-dd HH:mm:ss'); //formata data atual
-            var gameID = await this.returnIDByPlain(game.plain); //busca o id do jogo no bd com base na plain informada
-            var currentDeals = await this.returnGameDeals(gameID, true); //busca no bd as ofertas ativas do jogo caso existam
-            const conn = await this.connect();
+            var currentDeals = [];
+            var gameID = previousDeals[0].gameID; //pega id do jogo
+            //cria array com as deals anteriores
+            for (var i = 0; i < previousDeals.length; i++) {
+                if (i !== 0) currentDeals.push(previousDeals[i]); //ignora o primeiro item do array, que eh apenas a plain do jogo 
+            }
             var fetchedDeals = [];
             for (var deal of game.list) { //cria um array com precos de cada loja
-                fetchedDeals[deal.shop.id] = deal; //para evitar precos duplicados, utiliza nome da loja como index do array
+                if (storesFilter.includes(deal.shop.id)) //caso a loja conste no filtro de lojas permitidas
+                    fetchedDeals[deal.shop.id] = deal; //para evitar precos duplicados, utiliza nome da loja como index do array
             }
             for (var currentDeal of currentDeals) { //para cada deal atual no BD
                 if (fetchedDeals[currentDeal.id_itad] != undefined) { //caso esta deal conste nas deals atuais
@@ -66,7 +72,7 @@ class DB {
                         newDeal.current_deal = 1;
                         await this.insertDeal(newDeal);
                     }
-                    else if (fetchedDeal.price_new != currentDeal.price_new) {
+                    else if (fetchedDeal.price_new != currentDeal.price_new && (Math.abs(fetchedDeal.price_new - currentDeal.price_new) > 0.1)) { //10 centavos de diferenca
                         //Case 3 (Alterar para novos preços no BD, manter resto)
                         if (debug) console.log('Case 3 -> Price needs adjustment: ' + fetchedDeal.shop.id + ' (game ' + game.plain + ') '
                             + '[from ' + currentDeal.price_new + ' to ' + fetchedDeal.price_new + '] ');
@@ -149,7 +155,8 @@ class DB {
         var where = currentDealsOnly ? 'AND current_deal = 1' : '';
         const conn = await this.connect();
         var sql = 'SELECT d.*, s.id_itad FROM deals AS d INNER JOIN stores AS s '
-            + 'ON(d.id_store = s.id) WHERE id_game = ? ' + where + ' ORDER BY inserted_at DESC';
+            + 'ON(d.id_store = s.id) WHERE id_game = ? AND id_store IN ('
+            + config.storesFilter + ') ' + where + ' ORDER BY inserted_at DESC';
         const [rows] = await conn.query(sql, [gameID]).catch(e => console.log(e));
         return rows;
     }
@@ -163,6 +170,18 @@ class DB {
             return rows[0];
         }
         return false;
+    }
+
+
+    //retorna lsita de plains das lojas no filtro
+    async returnStoreFilterPlains() {
+        const conn = await this.connect();
+        const [rows] = await conn.query('SELECT id_itad FROM stores WHERE id IN (' + config.storesFilter + ')');
+        var storePlains = [];
+        for (var row of rows) {
+            storePlains.push(row.id_itad);
+        }
+        return storePlains;
     }
 
 
@@ -206,7 +225,19 @@ class DB {
         let idType = igdb_id ? 'igdb_id' : 'id'; //define o tipo de id da query
         if (where != '') where = ' AND ' + where; //condicao where
         const [rows] = await conn.query('SELECT ' + fields + ' FROM games WHERE ' + idType + ' >= ?' + where, idIndex);
-        if (debug) process.stdout.write('  -> ' + rows.length + ' games returned.');
+        if (debug) process.stdout.write('  -> ' + rows.length + ' games returned.\n');
+        return rows;
+    }
+
+
+    ////retorna do bd todos os games e suas deals atuais a partir do id informado (por padrao 1)
+    //utilizado para comparar se ha novos precos (newDealsCheck)
+    async returnAllGameDeals(idIndex = 1, fields = ' * ', debug = true) {
+        if (debug) process.stdout.write('Returning all games+deals from database... ');
+        const conn = await this.connect();
+        const [rows] = await conn.query('SELECT ' + fields + ' FROM game_deals WHERE id_store IN (' +
+            config.storesFilter + ') AND id_game >= ?', idIndex);
+        if (debug) process.stdout.write('  -> ' + rows.length + ' games returned.\n');
         return rows;
     }
 
