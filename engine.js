@@ -135,7 +135,7 @@ async function fetchAllGamesPrices(idIndex = 1) {
     var ITADInstance = new ITADApi();
     var gamesArray = [];
     for (var str of plainStringArr) { //para cada string no array de strings de plains
-        gamesArray = await ITADInstance.getPricesByPlain(str); //busca os precos dos jogos contidos nesta string
+        gamesArray = await ITADInstance.getPricesByPlain(str, null, 'br2', 'BR'); //busca os precos dos jogos contidos nesta string
         console.log("\n");
         for (var game of gamesArray) { //para cada objeto jogo retornado
             console.log("Game:  " + game.plain + " ---> " + game.list.length + " deal(s) found.");
