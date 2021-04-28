@@ -1,0 +1,27 @@
+{
+  "name": "game-oferta-engine",
+  "version": "1.0.0",
+  "description": "Engine do projeto GameOferta",
+  "main": "main.js",
+  "dependencies": {
+    "axios": "^0.21.1",
+    "delay": "^5.0.0",
+    "luxon": "^1.25.0",
+    "mysql2": "^2.2.5",
+    "p-limit": "^3.1.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eduardovk/game-oferta-engine.git"
+  },
+  "author": "Eduardo V. Kuhn e Guilherme S. Rodrigues",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/eduardovk/game-oferta-engine/issues"
+  },
+  "homepage": "https://github.com/eduardovk/game-oferta-engine#readme"
+}
