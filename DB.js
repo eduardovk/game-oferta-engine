@@ -1,8 +1,7 @@
-const dbConfig = require('./db_config'); //dados de conexao com o bd
+const config = require('./config.js');
 const { DateTime } = require('luxon'); //biblioteca para manipulacao de datas
 const { exit } = require('process');
 const { resourceLimits } = require('worker_threads');
-const config = require('./config.js');
 
 
 //classe de conexao e manipulacao do banco de dados
@@ -10,6 +9,13 @@ class DB {
 
     //inicia nova conexao com bd ou retorna conexao ativa
     async connect(debug = false) {
+        //dados de conexao com o bd
+        var dbConfig;
+        if (config.ambient === 'localhost') {
+            dbConfig = require('./db_config_local');
+        } else {
+            dbConfig = require('./db_config');
+        }
         //retorna a conexao ativa, caso ja exista
         if (global.connection && global.connection.state !== 'disconnected')
             return global.connection;

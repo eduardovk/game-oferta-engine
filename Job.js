@@ -1,4 +1,4 @@
-const dbConfig = require('./db_config'); //dados de conexao com o bd
+const config = require('./config.js');
 const { DateTime } = require('luxon'); //biblioteca para manipulacao de datas
 const dataBase = require('./DB'); //classe do banco de dados
 
@@ -7,7 +7,7 @@ class Job {
 
     constructor(jobType) {
         this.jobType = jobType;
-        this.ambient = process.env.AMBIENT ? process.env.AMBIENT : "localhost";
+        this.ambient = config.ambient;
     }
 
     //registra no bd inicio do job caso ja nao exista algum em andamento
