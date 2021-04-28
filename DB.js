@@ -307,7 +307,6 @@ class DB {
         const conn = await this.connect();
         const [rows] = await conn.query('SELECT * FROM games GROUP BY plain HAVING COUNT(plain) > 1');
         if (rows.length > 0) { //se houverem jogos com plains duplicadas
-            if (debug) process.stdout.write('  -> Found ' + rows.length + ' games with duplicate plains! \n');
             var currentDate = DateTime.local().toFormat('yyyy-LL-dd HH:mm:ss'); //formata data atual
             for (var game of rows) {//para cada jogo com plain duplicada
                 if (!game.duplicate_plain) {//se a flag duplicate_plain ainda nao estiver marcada
@@ -318,7 +317,6 @@ class DB {
                 }
             }
             if (debug) console.log('Finished updating games. (' + newDuplicates + ' new duplicate plains)');
-            return rows;
         }
         else if (debug) process.stdout.write('  -> No duplicate plains found. \n');
         return newDuplicates;

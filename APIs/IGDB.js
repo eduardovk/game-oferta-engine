@@ -1,4 +1,4 @@
-const keys = require('./keys') //chaves e tokens de APIs
+const config = require('../config.js');
 const axios = require('axios'); //biblioteca para requisicoes http
 const { exit } = require('process'); //para poder usar o comando exit
 const delay = require('delay'); //biblioteca para gerar atraso entre requests
@@ -7,6 +7,11 @@ const Stopwatch = require('../includes/Stopwatch'); //cronometro para fins de de
 //Classe da API IGDB
 //documentacao: https://api-docs.igdb.com/
 class IGDB {
+
+    constructor(jobType) {
+        //recebe vars de ambiente de chaves e tokens de API
+        this.keys = (config.ambient === 'localhost') ? require('./keys_local.js') : require('./keys.js');
+    }
 
     //retorna todos os jogos da plataforma PC
     //utiliza a funcao fetchAllGames para buscar 500 jogos de cada vez,
@@ -60,8 +65,8 @@ class IGDB {
         //headers do request
         var requestOptions = {
             headers: {
-                'Client-ID': keys.IGDBKeys.clientID,
-                'Authorization': 'Bearer ' + keys.IGDBKeys.apiKey
+                'Client-ID': this.keys.IGDBKeys.clientID,
+                'Authorization': 'Bearer ' + this.keys.IGDBKeys.apiKey
             }
         };
         //corpo do request (post)
