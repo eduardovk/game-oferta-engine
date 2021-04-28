@@ -296,6 +296,7 @@ class DB {
 
     //procura no bd por plains duplicadas, marca a flag e retorna os jogos correspondentes
     async checkDuplicatePlains(debug = true) {
+        var newDuplicates = 0;
         if (debug) process.stdout.write('Checking for duplicate plains...');
         const conn = await this.connect();
         const [rows] = await conn.query('SELECT * FROM games GROUP BY plain HAVING COUNT(plain) > 1');
@@ -306,14 +307,15 @@ class DB {
                 if (!game.duplicate_plain) {//se a flag duplicate_plain ainda nao estiver marcada
                     await conn.query('UPDATE games SET duplicate_plain = 1, updated_at = ?  WHERE plain = ?',
                         [currentDate, game.plain]); //marca a flag duplicate_plain e atualiza
-                    if (debug) console.log('UPDATED plain [' + game.plain + '] set duplicate_plain = true!')
+                    if (debug) console.log('UPDATED plain [' + game.plain + '] set duplicate_plain = true!');
+                    newDuplicates++;
                 }
             }
-            if (debug) console.log('Finished updating games. (' + rows.length + ' duplicate plains)');
+            if (debug) console.log('Finished updating games. (' + newDuplicates + ' new duplicate plains)');
             return rows;
         }
         else if (debug) process.stdout.write('  -> No duplicate plains found. \n');
-        return null;
+        return newDuplicates;
     }
 
 

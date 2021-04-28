@@ -14,6 +14,7 @@ async function fetchNewGames() {
     var idIndex = lastInsertedGame ? lastInsertedGame[0].igdb_id : 1; //pega o id igdb do jogo
     var IGDBInstance = new IGDBApi();
     var newGames = 0;
+    var newDuplicates = 0;
     await IGDBInstance.getAllGames(idIndex + 1).then(async (games) => { //busca na API IGDB todos jogos a partir do id 
         console.log("Games fetched: " + games.length);
         if (games.length > 0) { //caso hajam jogos novos
@@ -29,11 +30,11 @@ async function fetchNewGames() {
             }
             var newInsertedGames = await db.returnLatestGames(games.length);
             await fillGamePlains(newInsertedGames); //procura pelo plain de cada jogo novo na api ITAD e insere no bd
-            await db.checkDuplicatePlains(); //procura por plains duplicadas no bd e marca a flag duplicate_plain
+            newDuplicates = await db.checkDuplicatePlains(); //procura por plains duplicadas no bd e marca a flag duplicate_plain
         }
         return newGames;
     });
-    if (newGames > 0) return "Found " + newGames + " new games.";
+    if (newGames > 0) return "Found " + newGames + " new games, " + newDuplicates + " new duplicate plains.";
     return null;
 }
 
@@ -92,7 +93,9 @@ async function fetchAllGamesPrices(idIndex = 1) {
     stopwatch.start(); //inicia cronometro, para fins de debug
     var db = new dataBase();
     var storesFilter = await db.returnStoreFilterPlains(); //recebe plain das listas contidas no filtro
-    var gamePlainsList = await db.returnAllGames(idIndex, false, " id, plain ", "active = 1"); //retorna plains de todos jogos
+    //retorna plains de todos jogos que nao possuem plain duplicada ou nao conferida
+    var gamePlainsList = await db.returnAllGames(idIndex, false, " id, plain ", "active = 1 AND (duplicate_plain IS NULL"
+        + " OR duplicate_checked IS NOT NULL)");
     var gamesDeals = await db.returnAllGameDeals(idIndex); //retorna todos jogos e deals atuais
     var tempString = "";
     var groupedDeals = [];
