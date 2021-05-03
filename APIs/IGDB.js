@@ -44,7 +44,8 @@ class IGDB {
                         plain: null, //plain deve ser buscada posteriormente na API do ITAD
                         parent_game: game.parent_game ? game.parent_game : null, //se for dlc ou expansao, indica a qual jogo pertence
                         similar_games: this.stringifySimilarGames(game), //array de jogos similares (id do IGDB)
-                        igdb_cover: game.cover ? game.cover.url : null //thumbnail do jogo no IGDB
+                        igdb_cover: game.cover ? game.cover.url : null, //thumbnail do jogo no IGDB
+                        rating_count: game.total_rating_count ? game.total_rating_count : null //total de avaliacoes
                     });
                 }
                 idIndex += 500;
@@ -71,7 +72,7 @@ class IGDB {
         };
         //corpo do request (post)
         //buscando jogos cuja plataforma seja PC e cujo status seja null ou diferente de cancelado/nao lancado
-        var requestBody = `fields name, slug, category, status, parent_game, similar_games, cover.url;
+        var requestBody = `fields name, slug, category, status, parent_game, similar_games, cover.url, total_rating_count;
         where release_dates.platform = (6) & id >= `+ minID + ` & id <= ` + maxID +
             ` & (status = null | (status != 5 & status != 6 & status != 7));
         limit 500;`;

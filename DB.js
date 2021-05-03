@@ -37,9 +37,9 @@ class DB {
     async insertGame(game, debug = true) {
         var currentDate = DateTime.local().toFormat('yyyy-LL-dd HH:mm:ss'); //formata data atual
         const conn = await this.connect();
-        var sql = 'INSERT into games(igdb_id, name, slug, plain, category, status, parent_game, '
+        var sql = 'INSERT into games(igdb_id, name, slug, plain, rating_count, category, status, parent_game, '
             + 'similar_games, igdb_cover, inserted_at, updated_at, active) VALUES(?,?,?,?,?,?,?,?,?,?,?,?);';
-        var values = [game.igdb_id, game.name, game.slug, game.plain, game.category, game.status,
+        var values = [game.igdb_id, game.name, game.slug, game.plain, game.rating_count, game.category, game.status,
         game.parent_game, game.similar_games, game.igdb_cover, currentDate, currentDate, 1];
         return await conn.query(sql, values).then(() => {
             if (debug) console.log('Inserted game [' + game.name + '] into database!');
