@@ -38,6 +38,49 @@ async function fetchNewGames() {
     return null;
 }
 
+
+//procura na API do IGDB pelo rating dos jogos e atualiza no bd
+async function fetchAllGameRatings() {
+    var db = new dataBase();
+    //cria condicao where para buscar somente jogos ativos e nao duplicados
+    $where = ' active = 1 AND (duplicate_plain IS NULL OR duplicate_checked IS NOT NULL) ';
+    //retorna array de jogos + rating do bd
+    var dbGames = await db.returnAllGames(1, false, ' igdb_id, rating_count ', $where);
+    var dbGameRatings = []; //array de ratings de jogos do bd
+    var newGameRatings = []; //array de ratings de jogos para atualizar no bd
+    for (var dbGame of dbGames) {
+        dbGameRatings[dbGame.igdb_id] = dbGame.rating_count;
+    }
+    var IGDBInstance = new IGDBApi();
+    await IGDBInstance.getAllGameRatings().then(async (fetchedGames) => { //busca na API IGDB todos jogos + ratings
+        console.log("Games fetched: " + fetchedGames.length);
+        if (fetchedGames.length > 0) {
+            for (var fetchedGame of fetchedGames) { //para cada jogo + rating trazido da api
+                if (dbGameRatings[fetchedGame.igdb_id] !== undefined) { //caso este jogo esteja no bd
+                    //caso o rating seja diferente do que esta no bd
+                    if (dbGameRatings[fetchedGame.igdb_id] != fetchedGame.rating_count) {
+                        //adiciona ao array para atualizar no bd
+                        newGameRatings.push({
+                            igdb_id: fetchedGame.igdb_id,
+                            rating_count: fetchedGame.rating_count
+                        });
+                    }
+                }
+            }
+        }
+        if (newGameRatings.length > 0) { //se houverem ratings a serem atualizados
+            for (var newGameRating of newGameRatings) { //para cada game rating
+                //atualiza no bd
+                await db.updateGameRating(newGameRating.igdb_id, newGameRating.rating_count);
+            }
+            return null;
+        }
+    });
+    if (newGameRatings.length > 0) return "Updated " + newGameRatings.length + " game ratings.";
+    return null;
+}
+
+
 //procura na API do ITAD por novas lojas e insere no bd
 async function fetchNewStores() {
     var db = new dataBase();
@@ -163,4 +206,4 @@ async function fetchAllGamesPrices(idIndex = 1) {
     return finalMsg; //retorna msg de relatorio para salvar no job no bd
 }
 
-module.exports = { fetchNewGames, fillGamePlains, fetchAllGamesPrices, fetchNewStores };
+module.exports = { fetchNewGames, fillGamePlains, fetchAllGamesPrices, fetchAllGameRatings, fetchNewStores };

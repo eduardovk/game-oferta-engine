@@ -222,6 +222,18 @@ class DB {
     }
 
 
+    //atualiza o rating count do jogo no bd
+    async updateGameRating(igdbID, ratingCount, debug = true) {
+        var currentDate = DateTime.local().toFormat('yyyy-LL-dd HH:mm:ss'); //formata data atual
+        const conn = await this.connect();
+        var sql = 'UPDATE games SET rating_count = ?, updated_at = ? WHERE igdb_id = ? LIMIT 1';
+        var values = [ratingCount, currentDate, igdbID];
+        return await conn.query(sql, values).then(() => {
+            if (debug) console.log('UPDATED game rating count [' + igdbID + ' -> ' + ratingCount + ']!');
+        });
+    }
+
+
     //atualiza registro de preco-loja no bd
     async updateDeal(deal, debug = true) {
         const conn = await this.connect();

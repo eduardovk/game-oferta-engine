@@ -22,6 +22,15 @@ class IGDB {
     }
 
 
+    //retorna os ratings de todos jogos da plataforma PC
+    //utiliza a funcao fetchAllGameRatings para buscar 500 jogos de cada vez,
+    //respeitando limite de requisicoes por segundo da API
+    async getAllGameRatings(idIndex = 1) {
+        var games = await this.fetchAllGameRatings(idIndex);
+        return games;
+    }
+
+
     //busca no IGDB todos os jogos da plataforma PC de 500 em 500,
     //atraves da funcao fetchGames()
     async fetchAllGames(idIndex, debug = true) {
@@ -58,10 +67,38 @@ class IGDB {
     }
 
 
+    //busca no IGDB todos os  ratings de jogos da plataforma PC de 500 em 500,
+    //atraves da funcao fetchGames()
+    async fetchAllGameRatings(idIndex, debug = true) {
+        var gamesArray = [];
+        var fetching = true;
+        var stopwatch = new Stopwatch();
+        stopwatch.start(); //inicia cronometro, para fins de debug
+        while (fetching) {
+            await delay(300); //impoe atraso de 300 ms a cada request para nao violar limite da API
+            if (debug) console.log('Fetching game ratings from ID ' + idIndex + ' to ' + (idIndex + 500));
+            var games = await this.fetchGames(idIndex, (idIndex + 500), 'total_rating_count');
+            if (games.length > 0) { //se houverem resultados
+                for (var game of games) {
+                    gamesArray.push({
+                        igdb_id: game.id,
+                        rating_count: game.total_rating_count ? game.total_rating_count : null
+                    });
+                }
+                idIndex += 500;
+            } else { //caso nao hajam mais resultados
+                fetching = false;
+            }
+        }
+        stopwatch.stop(debug); //para cronometro
+        return gamesArray;
+    }
+
+
     //busca no IGDB os jogos da plataforma PC (de uma determinada faixa de IDs)
     //pois a API so permite ate 500 jogos por request
     //documentacao: https://api-docs.igdb.com/#game
-    async fetchGames(minID, maxID) {
+    async fetchGames(minID, maxID, fields = null) {
         var url = 'https://api.igdb.com/v4/games';
         //headers do request
         var requestOptions = {
@@ -70,12 +107,13 @@ class IGDB {
                 'Authorization': 'Bearer ' + this.keys.IGDBKeys.apiKey
             }
         };
+        //caso os campos nao sejam informados, define campos padrao
+        fields = fields ? `fields ` + fields + `;` : `fields name, slug, category, status, parent_game, similar_games, cover.url, total_rating_count;`;
         //corpo do request (post)
         //buscando jogos cuja plataforma seja PC e cujo status seja null ou diferente de cancelado/nao lancado
-        var requestBody = `fields name, slug, category, status, parent_game, similar_games, cover.url, total_rating_count;
-        where release_dates.platform = (6) & id >= `+ minID + ` & id <= ` + maxID +
-            ` & (status = null | (status != 5 & status != 6 & status != 7));
-        limit 500;`;
+        var requestBody = fields +
+            ` where release_dates.platform = (6) & id >= ` + minID + ` & id <= ` + maxID +
+            ` & (status = null | (status != 5 & status != 6 & status != 7)); limit 500;`;
         var games = await axios.post(url, requestBody, requestOptions)
             .then(function (response) {
                 return response.data;
