@@ -53,7 +53,7 @@ class IGDB {
                         plain: null, //plain deve ser buscada posteriormente na API do ITAD
                         parent_game: game.parent_game ? game.parent_game : null, //se for dlc ou expansao, indica a qual jogo pertence
                         similar_games: this.stringifySimilarGames(game), //array de jogos similares (id do IGDB)
-                        igdb_cover: game.cover ? game.cover.url : null, //thumbnail do jogo no IGDB
+                        igdb_cover: game.cover ? this.fixCoverURL(game.cover.url) : null, //thumbnail do jogo no IGDB
                         rating_count: game.total_rating_count ? game.total_rating_count : null //total de avaliacoes
                     });
                 }
@@ -138,6 +138,12 @@ class IGDB {
             similarGamesString = similarGamesString.slice(0, -1); //remove virgula extra
         }
         return similarGamesString;
+    }
+
+
+    //modifica url para apontar para a imagem de tamanho grande
+    fixCoverURL(url) {
+        return url.replace("t_thumb", "t_cover_big");
     }
 
 
