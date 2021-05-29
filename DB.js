@@ -67,8 +67,14 @@ class DB {
             }
             var fetchedDeals = [];
             for (var deal of game.list) { //cria um array com precos de cada loja
-                if (storesFilter.includes(deal.shop.id)) //caso a loja conste no filtro de lojas permitidas
-                    fetchedDeals[deal.shop.id] = deal; //para evitar precos duplicados, utiliza nome da loja como index do array
+                let storePlain = deal.shop.id;
+                if (storesFilter.includes(storePlain)) { //caso a loja conste no filtro de lojas permitidas
+                    if (fetchedDeals[storePlain] != undefined) { //caso ja tenha esta loja do array de precos (duplicata)
+                        if (deal.price_cut > fetchedDeals[storePlain].price_cut)
+                            fetchedDeals[storePlain] = deal; //substitui a deal duplicada se o desconto for maior
+                    } else
+                        fetchedDeals[storePlain] = deal;
+                }
             }
             for (var currentDeal of currentDeals) { //para cada deal atual no BD
                 if (fetchedDeals[currentDeal.id_itad] != undefined) { //caso esta deal conste nas deals atuais
