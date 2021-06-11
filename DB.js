@@ -51,16 +51,19 @@ class DB {
     async compareAndInsertDeals(game, previousDeals, storesFilter, debug = true) {
         //informacoes sobre qtd de deals atualizadas ou inseridas
         var operationInfo = {
+            gameID: null,
             new: 0,
             replaced: 0,
             updated: 0,
-            unreachable: 0
+            unreachable: 0,
+            newOffers: []
         };
         if (debug) console.log("\n");
         if (game.plain != null && game.plain.trim() != '') {
             var currentDate = DateTime.local().toFormat('yyyy-LL-dd HH:mm:ss'); //formata data atual
             var currentDeals = [];
             var gameID = previousDeals[0].gameID; //pega id do jogo
+            operationInfo.gameID = gameID;
             //cria array com as deals anteriores
             for (var i = 0; i < previousDeals.length; i++) {
                 if (i !== 0) currentDeals.push(previousDeals[i]); //ignora o primeiro item do array, que eh apenas a plain do jogo 
@@ -82,6 +85,9 @@ class DB {
                     if (fetchedDeal.price_new != currentDeal.price_new && fetchedDeal.price_cut != currentDeal.price_cut) {
                         //Case 2 (Alterar current_deal = 0 no BD, Inserir nova deal com novos valores e current_deal = 1)
                         operationInfo.replaced++;
+                        //caso desconto seja maior que anteriormente, adiciona a array de novas ofertas
+                        if (fetchedDeal.price_cut > currentDeal.price_cut)
+                            operationInfo.newOffers.push(fetchedDeal);
                         if (debug) console.log('Case 2-> CHANGE Deal from ' + currentDeal.id_itad + ' (game ' + game.plain + ') NEW PRICE and PRICE CUT. ');
                         currentDeal.current_deal = 0;
                         await this.updateDeal(currentDeal);
@@ -123,6 +129,8 @@ class DB {
                 if (isNewStoreDeal) {
                     //Case 5 (Inserir nova deal no BD)
                     operationInfo.new++;
+                    //caso desconto seja maior que zero, adiciona a array de novas ofertas
+                    if (info.price_cut > 0) operationInfo.newOffers.push(info);
                     if (debug) console.log('Case 5 -> GAME [' + game.plain + '] HAS NEW STORE DEAL (' + info.shop.id + ')! ');
                     var storeInfo = await this.returnStore(shop);
                     var newDeal = {
@@ -262,6 +270,18 @@ class DB {
         if (where != '') where = ' AND ' + where; //condicao where
         const [rows] = await conn.query('SELECT ' + fields + ' FROM games WHERE ' + idType + ' >= ?' + where, idIndex);
         if (debug) process.stdout.write('  -> ' + rows.length + ' games returned.\n');
+        return rows;
+    }
+
+
+    //retorna todos jogos que estao em alguma wishlist (id do jogo e id do usuario)
+    async returnAllGamesInWishlists(debug = true) {
+        if (debug) process.stdout.write('Returning all games in wishlists from database... ');
+        const conn = await this.connect();
+        var sql = 'SELECT wg.id_game, u.id AS id_user FROM wishlist_games AS wg INNER JOIN wishlists '
+            + 'AS w ON (wg.id_wishlist = w.id) INNER JOIN users AS u ON (w.id_user = u.id) ORDER BY id_game ASC'
+        const [rows] = await conn.query(sql);
+        if (debug) process.stdout.write('  -> ' + rows.length + ' games + wishlists returned.\n');
         return rows;
     }
 

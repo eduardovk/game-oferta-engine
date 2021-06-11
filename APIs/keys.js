@@ -8,5 +8,6 @@ module.exports = {
     clientID: process.env.IGDB_ID,
     clientSecret: process.env.IGDB_SECRET,
     apiKey: process.env.IGDB_KEY //valido por 2 meses
-  }
+  },
+  GameOfertaKey: process.env.GameOferta_KEY
 }

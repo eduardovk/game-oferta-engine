@@ -1,6 +1,7 @@
 const dataBase = require('./DB'); //classe do banco de dados
 const ITADApi = require('./APIs/ITAD') //classe da API do ITAD
 const IGDBApi = require('./APIs/IGDB'); //classe da API do IGDB
+const GameOfertaApi = require('./APIs/GameOfertaAPI'); //classe da API do GameOferta
 const delay = require('delay'); //biblioteca para gerar atraso entre requests
 const { exit } = require('process'); //para poder utilizar a funcao exit
 const Stopwatch = require('./includes/Stopwatch'); //cronometro para fins de debug
@@ -130,6 +131,7 @@ async function fetchAllGamesPrices(idIndex = 1) {
         updated: 0,
         unreachable: 0
     };
+    var notifyList = []; //array de usuarios e ofertas para notificar
     var plainsString = "";
     var plainStringArr = []; //array de strings de plains limitadas pelo tamanho maximo de url
     var stopwatch = new Stopwatch();
@@ -177,6 +179,7 @@ async function fetchAllGamesPrices(idIndex = 1) {
     plainStringArr.push(plainsString);
     var ITADInstance = new ITADApi();
     var gamesArray = [];
+    var newOffers = []; //novas ofertas (que serao notificadas por email)
     for (var str of plainStringArr) { //para cada string no array de strings de plains
         gamesArray = await ITADInstance.getPricesByPlain(str, null, 'br2', 'BR'); //busca os precos dos jogos contidos nesta string
         console.log("\n");
@@ -192,8 +195,16 @@ async function fetchAllGamesPrices(idIndex = 1) {
             dealsOperationInfo.updated += operationInfo.updated;
             dealsOperationInfo.replaced += operationInfo.replaced;
             dealsOperationInfo.unreachable += operationInfo.unreachable;
+            //insere novas ofertas no array para notificar por email
+            if (operationInfo.newOffers.length > 0) {
+                // let newOffer = { gameID: operationInfo.gameID, gameNewOffers: operationInfo.newOffers };
+                // newOffers.push(newOffer);
+                newOffers[operationInfo.gameID] = operationInfo.newOffers;
+            }
         }
     }
+    notifyList = await createNotificationList(newOffers, db);
+    await sendNotifications(notifyList);
     console.log('\n\n' + totalGamesAnalyzed + ' TOTAL GAMES ANALYZED.');
     console.log(dealsOperationInfo.new + ' new deals INSERTED.');
     console.log(dealsOperationInfo.updated + ' deals UPDATED.');
@@ -202,8 +213,45 @@ async function fetchAllGamesPrices(idIndex = 1) {
     console.log('Total execution time: ' + stopwatch.stop()); //para cronometro
     //cria mensagem de relatorio da operacao
     var finalMsg = totalGamesAnalyzed + " games analyzed, " + dealsOperationInfo.new + " new deals inserted, "
-        + dealsOperationInfo.updated + " updated, " + dealsOperationInfo.replaced + " replaced, " + dealsOperationInfo.unreachable + " unreachable.";
+        + dealsOperationInfo.updated + " updated, " + dealsOperationInfo.replaced + " replaced, " + dealsOperationInfo.unreachable
+        + " unreachable. " + notifyList.length + " users to be notified. ";
     return finalMsg; //retorna msg de relatorio para salvar no job no bd
+}
+
+
+//cria lista de jogos em wishlist e usuarios para receber as notificacoes
+async function createNotificationList(newOffers, db) {
+    var gamesInWishlist = await db.returnAllGamesInWishlists(); //array de jogos em wishlist e usuarios
+    var usersGames = []; //array de usuarios e os jogos q possuem em wishlist
+    var usersNewOffers = []; //array de usuarios e os jogos q possuem em wishlist que entraram em oferta
+    //agrupa por usuario > jogos > novas ofertas
+    for (var gameWishlist of gamesInWishlist) {
+        if (usersGames[gameWishlist.id_user] == undefined) //caso user ainda nao esteja no array
+            usersGames[gameWishlist.id_user] = [];
+        //adiciona id do jogo ao array do usuario
+        usersGames[gameWishlist.id_user].push(gameWishlist.id_game);
+    }
+    //estrutura array com usuarios e jogos com ofertas novas
+    for (var userID in usersGames) {
+        var userDeals = { id_user: userID, new_offers: [] };
+        for (var gameID of usersGames[userID]) {
+            if (newOffers[gameID] != undefined) //se id do jogo estiver no array de novas ofertas
+                userDeals.new_offers.push({ id_game: gameID, deals: newOffers[gameID] });
+        }
+        //se usuario possuir na wishlist jogo com oferta nova, adiciona no array
+        if (userDeals.new_offers.length > 0) usersNewOffers.push(userDeals);
+    }
+    return usersNewOffers;
+}
+
+
+//envia solicitacao para API GameOferta notificar usuario de nova oferta
+async function sendNotifications(notifyList) {
+    var GOAPI = new GameOfertaApi();
+    for (var notificationInfo of notifyList) {
+        await GOAPI.sendNotification(notificationInfo);
+    }
+    return null;
 }
 
 module.exports = { fetchNewGames, fillGamePlains, fetchAllGamesPrices, fetchAllGameRatings, fetchNewStores };
