@@ -73,8 +73,10 @@ class DB {
                 let storePlain = deal.shop.id;
                 if (storesFilter.includes(storePlain)) { //caso a loja conste no filtro de lojas permitidas
                     if (fetchedDeals[storePlain] != undefined) { //caso ja tenha esta loja do array de precos (duplicata)
-                        if (deal.price_cut > fetchedDeals[storePlain].price_cut)
-                            fetchedDeals[storePlain] = deal; //substitui a deal duplicada se o desconto for maior
+                        //sinaliza no bd o jogo como preco duplicado e retorna booleano se o preco gratuito deve ou nao ser o preco escolhido
+                        var notFree = await this.flagDuplicatePrice(gameID);
+                        if (deal.price_cut > 0 || !notFree) //caso o preco seja maior que 0 ou notFree seja false
+                            fetchedDeals[storePlain] = deal; //substitui a deal duplicada
                     } else
                         fetchedDeals[storePlain] = deal;
                 }
@@ -148,6 +150,20 @@ class DB {
             console.log('ERROR: EMPTY PLAIN! ');
         }
         return operationInfo; //retorna informacoes sobre as operacoes realizadas nas deals deste jogo
+    }
+
+
+    //sinaliza no bd o jogo como preco duplicado e retorna booleano se deve ou nao escolher o preco gratuito
+    async flagDuplicatePrice(gameID) {
+        if (debug) console.log('Flagging duplicate price (GameID: ' + gameID + ')... ');
+        const conn = await this.connect();
+        //sinaliza como preco duplicado
+        var sql = "UPDATE games SET duplicate_price = 1 WHERE id = ? LIMIT 1";
+        await conn.query(sql, [gameID]);
+        //verifica se o jogo deve aceitar o preco gratuito como preco correto
+        sql = "SELECT not_free FROM games WHERE id = ? LIMIT 1";
+        var notFree = await conn.query(sql, [gameID]);
+        return notFree;
     }
 
 
