@@ -154,7 +154,7 @@ class DB {
 
 
     //sinaliza no bd o jogo como preco duplicado e retorna booleano se deve ou nao escolher o preco gratuito
-    async flagDuplicatePrice(gameID) {
+    async flagDuplicatePrice(gameID, debug = true) {
         if (debug) console.log('Flagging duplicate price (GameID: ' + gameID + ')... ');
         const conn = await this.connect();
         //sinaliza como preco duplicado
