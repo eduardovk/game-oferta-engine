@@ -75,7 +75,7 @@ class DB {
                     if (fetchedDeals[storePlain] != undefined) { //caso ja tenha esta loja do array de precos (duplicata)
                         //sinaliza no bd o jogo como preco duplicado e retorna booleano se o preco gratuito deve ou nao ser o preco escolhido
                         var notFree = await this.flagDuplicatePrice(gameID);
-                        if (deal.price_cut > 0 || !notFree) //caso o preco seja maior que 0 ou notFree seja false
+                        if (deal.price_cut != 100 || !notFree) //caso o preco seja maior que 0 ou notFree seja false
                             fetchedDeals[storePlain] = deal; //substitui a deal duplicada
                     } else
                         fetchedDeals[storePlain] = deal;
