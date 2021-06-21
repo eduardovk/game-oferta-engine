@@ -98,6 +98,7 @@ class DB {
                         newDeal.price_old = fetchedDeal.price_old;
                         newDeal.price_cut = fetchedDeal.price_cut;
                         newDeal.current_deal = 1;
+                        newDeal.url = fetchedDeal.url;
                         await this.insertDeal(newDeal);
                     }
                     else if (fetchedDeal.price_new != currentDeal.price_new && (Math.abs(fetchedDeal.price_new - currentDeal.price_new) > 0.1)) { //10 centavos de diferenca
@@ -107,10 +108,17 @@ class DB {
                             + '[from ' + currentDeal.price_new + ' to ' + fetchedDeal.price_new + '] ');
                         currentDeal.price_new = fetchedDeal.price_new;
                         currentDeal.price_old = fetchedDeal.price_old;
+                        currentDeal.url = fetchedDeal.url;
                         await this.updateDeal(currentDeal);
                     } else {
-                        //Case 1 (Nao faz nada, somente printa no console se debug for true)
-                        if (debug) console.log('Case 1 -> Deal from ' + fetchedDeal.shop.id + ' (game ' + game.plain + ') didnt change. ');
+                        //Case 1.A (Nao faz nada, somente printa no console se debug for true)
+                        if (currentDeal.url != null && debug) console.log('Case 1 -> Deal from ' + fetchedDeal.shop.id + ' (game ' + game.plain + ') didnt change. ');
+                        //CASE 1.B (Aproveita para atualizar a url da deal, caso ainda nao esteja presente no bd)
+                        else if (currentDeal.url == null) {
+                            currentDeal.url = fetchedDeal.url;
+                            await this.updateDeal(currentDeal);
+                            if (debug) console.log('Case 1 -> Deal from ' + fetchedDeal.shop.id + ' (game ' + game.plain + ') updated only URL. ');
+                        }
                     }
                 } else { //caso esta deal nao conste mais nas deals atuais
                     //Case 4 (Alterar para current_deal = 0 e unreachable = 1 no BD)
@@ -141,7 +149,8 @@ class DB {
                         id_store: storeInfo['id'],
                         price_new: info.price_new,
                         price_old: info.price_old,
-                        price_cut: info.price_cut
+                        price_cut: info.price_cut,
+                        url: info.url
                     };
                     await this.insertDeal(newDeal);
                 }
@@ -173,8 +182,8 @@ class DB {
         var currentDate = DateTime.local().toFormat('yyyy-LL-dd HH:mm:ss'); //formata data atual
         const conn = await this.connect();
         var sql = "INSERT INTO deals(id_game, id_store, price_new, price_old, "
-            + "price_cut, current_deal, inserted_at) VALUES(?,?,?,?,?,?,?)";
-        var values = [deal.id_game, deal.id_store, deal.price_new, deal.price_old, deal.price_cut, 1, currentDate];
+            + "price_cut, current_deal, url, inserted_at) VALUES(?,?,?,?,?,?,?,?)";
+        var values = [deal.id_game, deal.id_store, deal.price_new, deal.price_old, deal.price_cut, 1, deal.url, currentDate];
         await conn.query(sql, values).then(() => {
             if (debug) console.log('Inserted deal [' + deal.id_itad + ' -> game_id ' + deal.id_game + '] into database!');
         });
@@ -268,8 +277,8 @@ class DB {
     async updateDeal(deal, debug = true) {
         const conn = await this.connect();
         var sql = 'UPDATE deals SET price_new = ?, price_old = ?, price_cut = ?, '
-            + 'current_deal = ?, unreachable = ? WHERE id = ? LIMIT 1';
-        var values = [deal.price_new, deal.price_old, deal.price_cut, deal.current_deal, deal.unreachable, deal.id];
+            + 'current_deal = ?, url = ?, unreachable = ? WHERE id = ? LIMIT 1';
+        var values = [deal.price_new, deal.price_old, deal.price_cut, deal.current_deal, deal.url, deal.unreachable, deal.id];
         return await conn.query(sql, values).then(() => {
             if (debug) console.log('UPDATED deal [' + deal.id_itad + ' -> game_id ' + deal.id_game + ']!');
         });
