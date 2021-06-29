@@ -203,8 +203,10 @@ async function fetchAllGamesPrices(idIndex = 1) {
             }
         }
     }
-    notifyList = await createNotificationList(newOffers, db);
-    await sendNotifications(notifyList);
+    notifyList = await createNotificationList(newOffers, db); //cria lista de notificao por email
+    await sendNotifications(notifyList); //envia solicitacao de notificacoes para api GameOferta
+    var GOAPI = new GameOfertaApi();
+    await GOAPI.updateHomePage(); //envia solicitacao para api GameOferta atualizar jogos da homepage
     console.log('\n\n' + totalGamesAnalyzed + ' TOTAL GAMES ANALYZED.');
     console.log(dealsOperationInfo.new + ' new deals INSERTED.');
     console.log(dealsOperationInfo.updated + ' deals UPDATED.');

@@ -20,6 +20,11 @@ class GameOfertaAPI {
         console.log("Sending request for API Notification for user (" + notificationInfo.id_user + "), games (" + gamesIDs + ")");
         await axios.post('https://game-oferta-api.herokuapp.com/email', notificationInfo);
     }
+
+    //envia solicitacao para API GameOferta atualizar jogos da homepage
+    async updateHomePage(){
+        await axios.post('https://game-oferta-api.herokuapp.com/update_homepage', []);
+    }
 }
 
 module.exports = GameOfertaAPI;
